@@ -1,0 +1,585 @@
+C51 COMPILER V9.60.0.0   MAIN                                                              06/09/2022 22:09:28 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main
+                    -.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          
+   2          // /*KHOA DIEN TU MAT KHAU DUNG VI DIEU KHIEN 8051 */
+   3          // 1. Trần Minh Nhật 2014008
+   4          // 2. Lê Trung Nguyên 2011701
+   5          // 3. Bùi Quốc Khánh 2010325
+   6          // 4. Võ Huỳnh Anh Vũ 2015100
+   7          #include<reg51.h>
+   8          #include<string.h>
+   9          #define MAX 16
+  10          //khai bao ket noi data lcd
+  11          #define lcdport P1
+  12          
+  13          //khai bao ket noi dieu khien lcd
+  14          sbit rs=P3^4;
+  15          sbit rw=P3^5;
+  16          sbit en=P3^6;
+  17          
+  18          //khai bao den led bao hieu
+  19          sbit led_green = P3^3;
+  20          sbit led_red   = P3^2;
+  21          
+  22          //khai bao ket noi motor
+  23          sbit m1=P3^0;
+  24          sbit m2=P3^1;
+  25          
+  26          //khao bao ket noi dong cua keypad
+  27          sbit r1=P0^0;
+  28          sbit r2=P0^1;
+  29          sbit r3=P0^2;
+  30          sbit r4=P0^3;
+  31          
+  32          //khao ba0 ket noi cot cua keypad
+  33          sbit c1=P0^4;
+  34          sbit c2=P0^5;
+  35          sbit c3=P0^6;
+  36          
+  37          //khai bao ket noi am thanh
+  38          sbit buzzer=P0^7;
+  39          
+  40          //khai bao mat khau
+  41          char uid[MAX]="12345";
+  42          char id[MAX];
+  43          char new_id1[MAX];
+  44          char new_id2[MAX];
+  45          
+  46          //khai bao chuong trinh con 
+  47          void lcdint(); // khoi tao lcd
+  48          void lcddis(char *); //in chuoi ki tu ra lcd
+  49          void delay(int); //ham delay
+  50          void lcdcmd(char); // command mode cho lcd
+  51          void lcddata(char); // data mode cho lcd
+  52          char lcdkey(); // ham quet ma keypad
+  53          char scan_key(); // ham nhan ki tu thu vao
+  54          void door_open(); // ham mo cua
+C51 COMPILER V9.60.0.0   MAIN                                                              06/09/2022 22:09:28 PAGE 2   
+
+  55          void door_close(); // ham dong cua
+  56          void sounder(); // ham phat am thanh
+  57          void bip_bip();//am thanh ban phim
+  58          
+  59          void main(){
+  60   1          int n_enter, n_chmod, n_lock, n, n_2;
+  61   1        char key;
+  62   1        led_green=0;
+  63   1          led_red=0;
+  64   1          buzzer=0;
+  65   1        
+  66   1        P2=0x00; // port 2 la ngo ra
+  67   1        P1=0xff; // port 1 la ngo vao
+  68   1      
+  69   1        lcdint(); 
+  70   1        lcddis("    WELCOME!    ");
+  71   1        lcdcmd(0xc0);
+  72   1        lcddis("|--- HCMUT ---| ");
+  73   1        delay(100);
+  74   1        lcdint();
+  75   1        lcddis("CUA DA KHOA !!");
+  76   1        delay(100);
+  77   1        n_lock=0;
+  78   1      
+  79   1        while(1){
+  80   2          lcdcmd(0x01);  //xoa hien thi lcd
+  81   2          lcdcmd(0x02); //4bit mode lcd
+  82   2          lcddis("NHAP MAT KHAU:*");
+  83   2          lcdcmd(0xc0); // di chuyen con tro den dong thu 2
+  84   2          lcddis("DOI MAT KHAU: #");
+  85   2          n_chmod=0;
+  86   2          while(n_chmod<1){
+  87   3            key=scan_key();
+  88   3            delay(100);
+  89   3            n_chmod++;
+  90   3          }
+  91   2          if(key=='*'){
+  92   3            //mode nhap mat khau
+  93   3            lcdint();
+  94   3            lcddis("NHAP MAT KHAU: ");
+  95   3            lcdcmd(0xc0); // di chuyen con tro den dong thu 2
+  96   3            n_enter=0;
+  97   3            while(n_enter<MAX){ //lcd 16x2 => n_max=16
+  98   4              unsigned char i;
+  99   4              for(i=0;i<MAX;i++){
+ 100   5                id[i]=0;
+ 101   5              }
+ 102   4              do{
+ 103   5                key=scan_key();
+ 104   5                delay(100);
+ 105   5                if(n_enter==16){
+ 106   6                  break;
+ 107   6                }
+ 108   5                if(key != '*'){
+ 109   6                  id[n_enter]=key;
+ 110   6                }else{
+ 111   6                  break;
+ 112   6                }
+ 113   5                n_enter++;
+ 114   5              }while(key != '*');
+ 115   4              if(key=='*'){
+ 116   5                break;
+C51 COMPILER V9.60.0.0   MAIN                                                              06/09/2022 22:09:28 PAGE 3   
+
+ 117   5              }
+ 118   4              n_enter++;
+ 119   4            }
+ 120   3            lcdcmd(0x01); // xoa hien thi lcd
+ 121   3            lcdcmd(0x02); // 4bit mode lcd
+ 122   3            if(strcmp(uid,id)==0){
+ 123   4              lcddis("NHAP THANH CONG!");
+ 124   4              n_lock=0;
+ 125   4                  led_green = 1;
+ 126   4                  led_red   = 0;
+ 127   4              delay(200);
+ 128   4              door_open(); //mo cua
+ 129   4              delay(200);
+ 130   4              door_close(); //dong cua
+ 131   4              lcdcmd(0x01); //xoa hien thi lcd
+ 132   4              lcdcmd(0x02); //4bit mode lcd
+ 133   4            }
+ 134   3            else{
+ 135   4              n_lock++;
+ 136   4              lcddis("SAI MAT KHAU");
+ 137   4                  led_green = 0;
+ 138   4                  led_red   = 1;
+ 139   4              sounder();  //phat am thanh
+ 140   4              led_green = 0;
+ 141   4                  led_red   = 0;
+ 142   4              delay(100);
+ 143   4              
+ 144   4              lcdcmd(0x01); //xoa hien thi lcd
+ 145   4              lcdcmd(0x02); //4bit mode lcd
+ 146   4              if(n_lock!=5){
+ 147   5                lcddis("VUI LONG THU LAI");
+ 148   5                delay(200);
+ 149   5                lcdcmd(0x01); //xoa hien thi lcd
+ 150   5                lcdcmd(0x02); //4bit mode lcd
+ 151   5              }else{
+ 152   5                lcddis("KHOA VINH VIEN!!");
+ 153   5                while(1){
+ 154   6                  delay(100);
+ 155   6                }
+ 156   5              }
+ 157   4            }
+ 158   3          }else if(key=='#'){
+ 159   3            //mode doi mat khau
+ 160   3            lcdint();
+ 161   3            lcddis("NHAP MAT KHAU CU");
+ 162   3            lcdcmd(0xc0);
+ 163   3            n_enter=0;
+ 164   3            while(n_enter<MAX){ //lcd 16x2 => n_max=16
+ 165   4              unsigned char i;
+ 166   4              for(i=0;i<MAX;i++){
+ 167   5                id[i]=0;
+ 168   5              }
+ 169   4              do{
+ 170   5                key=scan_key();
+ 171   5                delay(100);
+ 172   5                if(n_enter==16){
+ 173   6                  break;
+ 174   6                }
+ 175   5                if(key != '*'){
+ 176   6                  id[n_enter]=key;
+ 177   6                }else{
+ 178   6                  break;
+C51 COMPILER V9.60.0.0   MAIN                                                              06/09/2022 22:09:28 PAGE 4   
+
+ 179   6                }
+ 180   5                n_enter++;
+ 181   5              }while(key != '*');
+ 182   4              if(key=='*'){
+ 183   5                break;
+ 184   5              }
+ 185   4              n_enter++;
+ 186   4            }
+ 187   3            lcdcmd(0x01); // xoa hien thi lcd
+ 188   3            lcdcmd(0x02); // 4bit mode lcd
+ 189   3            if(strcmp(uid,id)==0){
+ 190   4              unsigned char i;
+ 191   4              for(i=0;i<MAX;i++){
+ 192   5                new_id1[i]=0;
+ 193   5              }
+ 194   4              lcddis("NHAP MATKHAU MOI");
+ 195   4              lcdcmd(0xc0);
+ 196   4              n=0;
+ 197   4              while(n<MAX){
+ 198   5                do{
+ 199   6                  key=scan_key();
+ 200   6                  delay(100);
+ 201   6                  if(n==16){
+ 202   7                    break;
+ 203   7                  }
+ 204   6                  if(key != '*'){
+ 205   7                    new_id1[n]=key;
+ 206   7                  }else{
+ 207   7                    break;
+ 208   7                  }
+ 209   6                  n++;
+ 210   6                }while(key != '*');
+ 211   5                if(key=='*'){
+ 212   6                  break;
+ 213   6                }
+ 214   5                n++;
+ 215   5              }
+ 216   4              for(i=0;i<MAX;i++){
+ 217   5                new_id2[i]=0;
+ 218   5              }
+ 219   4              lcdint();
+ 220   4              lcddis("NHAP MK LAN 2:");
+ 221   4              lcdcmd(0xc0);
+ 222   4      
+ 223   4              n_2=0;
+ 224   4              while(n_2<MAX){
+ 225   5                do{
+ 226   6                  key=scan_key();
+ 227   6                  delay(100);
+ 228   6                  if(n_2==16){
+ 229   7                    break;
+ 230   7                  }
+ 231   6                  if(key != '*'){
+ 232   7                    new_id2[n_2]=key;
+ 233   7                  }else{
+ 234   7                    break;
+ 235   7                  }
+ 236   6                  n_2++;
+ 237   6                }while(key != '*');
+ 238   5                if(key=='*'){
+ 239   6                  break;
+ 240   6                }
+C51 COMPILER V9.60.0.0   MAIN                                                              06/09/2022 22:09:28 PAGE 5   
+
+ 241   5                n_2++;
+ 242   5              }
+ 243   4              lcdint();
+ 244   4              if(strcmp(new_id1,new_id2)==0){
+ 245   5                unsigned char i;
+ 246   5                lcddis("DOI THANH CONG!");
+ 247   5                delay(100);
+ 248   5                lcdint();
+ 249   5                for(i=0;i<MAX;i++){
+ 250   6                  uid[i]=0;
+ 251   6                }
+ 252   5                for(i=0;i<n_2;i++){
+ 253   6                  uid[i]=new_id2[i];
+ 254   6                }
+ 255   5                
+ 256   5              }else{
+ 257   5                lcddis("KHONG HOP LE!");
+ 258   5                lcdint;
+*** WARNING C275 IN LINE 258 OF main.c: expression with possibly no effect
+ 259   5              }
+ 260   4              
+ 261   4            }else{
+ 262   4              lcddis("SAI MAT KHAU!");
+ 263   4              delay(100);
+ 264   4              lcdint();
+ 265   4            }
+ 266   3          }
+ 267   2          
+ 268   2        }
+ 269   1        
+ 270   1      }
+ 271          //------------------------
+ 272          // khoi tao lcd
+ 273          void lcdint(){
+ 274   1        lcdcmd(0x38); //  khoi tao lcd 8bit
+ 275   1        delay(2);
+ 276   1        lcdcmd(0x01); // xoa hien thi lcd
+ 277   1        delay(2);
+ 278   1        lcdcmd(0x80); // di chuyen con tro den dong 1
+ 279   1        delay(2);
+ 280   1        lcdcmd(0x0e); //con tro nhap nhay
+ 281   1        delay(2);
+ 282   1      }
+ 283          //-------------------------
+ 284          //ham delay
+ 285          void delay(int x)
+ 286          {
+ 287   1        int i,j;
+ 288   1        for(i=0;i<x;i++)
+ 289   1        for(j=0;j<1275;j++);
+ 290   1      }
+ 291          //-----------------------
+ 292          //ham delay ms
+ 293          void delay_ms(int x)
+ 294          {
+ 295   1        int i,j;
+ 296   1        for(i=0;i<x;i++)
+ 297   1        for(j=0;j<123;j++);
+ 298   1      }
+ 299          //-------------------------
+ 300          //command mode 
+ 301          void lcdcmd(char A){
+C51 COMPILER V9.60.0.0   MAIN                                                              06/09/2022 22:09:28 PAGE 6   
+
+ 302   1        lcdport=A;  // gui ma code den lcd port
+ 303   1        rs=0;   
+ 304   1        rw=0; 
+ 305   1        en=1; 
+ 306   1        delay(1);
+ 307   1        en=0; //tao canh xuong
+ 308   1      }
+ 309          //------------------------------
+ 310          // hien thi chuoi ki tu ra lcd
+ 311          void lcddis(char *p){
+ 312   1        while(*p!='\0'){
+ 313   2          lcddata(*p);
+ 314   2          delay(5);
+ 315   2          p++;
+ 316   2        }
+ 317   1      }
+ 318          //--------------------
+ 319          //data mode lcd
+ 320          void lcddata(char value)
+ 321          {
+ 322   1        lcdport=value; 
+ 323   1        rs=1; 
+ 324   1        rw=0; 
+ 325   1        en=1; 
+ 326   1        delay(1);
+ 327   1        en=0; //canh xuong
+ 328   1      }
+ 329          //------------------------
+ 330          // ham phat am thanh
+ 331          void sounder(){
+ 332   1        int i;
+ 333   1        for(i=0;i<5;i++){
+ 334   2          buzzer=1; //buzzer on
+ 335   2          delay(40);
+ 336   2          buzzer=0; //buzzer of
+ 337   2        }
+ 338   1      }
+ 339          //-------------------------
+ 340          //ham mo cua
+ 341          void door_open(){
+ 342   1        lcdcmd(0x01); //xoa hien thi man hinh lcd
+ 343   1        lcdcmd(0x02); // quay ve vi tri home
+ 344   1        lcddis("DANG MO CUA...");
+ 345   1        m1=1; //Motor on
+ 346   1        m2=0; //motor off
+ 347   1      }
+ 348          //--------------------------
+ 349          //ham dong cua
+ 350          void door_close(){
+ 351   1        lcdcmd(0x01); 
+ 352   1        lcdcmd(0x02);
+ 353   1        lcddis("DANG DONG CUA...");
+ 354   1        m1=0;
+ 355   1        m2=0;
+ 356   1        delay(20);
+ 357   1        m1=0;
+ 358   1        m2=1;
+ 359   1        delay(200);
+ 360   1        m1=0;
+ 361   1        m2=0;
+ 362   1        led_green=0;
+ 363   1        led_red=0;
+C51 COMPILER V9.60.0.0   MAIN                                                              06/09/2022 22:09:28 PAGE 7   
+
+ 364   1      }
+ 365          //---------------------------
+ 366          //ham am thanh ban phim
+ 367          void bip_bip(){
+ 368   1        int i;
+ 369   1        for(i=0;i<5;i++){
+ 370   2          buzzer=1; //buzzer on
+ 371   2          delay(1);
+ 372   2          buzzer=0; //buzzer of
+ 373   2        }
+ 374   1      }
+ 375          
+ 376          //--------------------------
+ 377          //ham nhan mot ki tu da duoc nhan
+ 378          char scan_key(){
+ 379   1        char b='n';
+ 380   1        while(b=='n'){
+ 381   2          b=lcdkey();
+ 382   2        }
+ 383   1        if(b!='n'){
+ 384   2          bip_bip();
+ 385   2        }
+ 386   1        return b;
+ 387   1      }
+ 388          
+ 389          //--------------------------
+ 390          //ham quet ki tu cua keypad
+ 391          /*
+ 392          r1----------1-----2-----3
+ 393                |   |     |
+ 394          r2----------4-----5-----6
+ 395                |   |     |
+ 396          r3----------7-----8-----9
+ 397                |   |     |
+ 398          r2----------*-----0-----#
+ 399                |   |     |
+ 400          c1~~~~~~~~~~|     |     |
+ 401          c2~~~~~~~~~~~~~~~~|     |
+ 402          c3~~~~~~~~~~~~~~~~~~~~~~|
+ 403          */
+ 404          char lcdkey(){
+ 405   1        c1=c2=c3=1; 
+ 406   1        r1=r2=r3=r4=0; 
+ 407   1        
+ 408   1        //quet hang thu 1
+ 409   1        r1=0;
+ 410   1        r2=r3=r4=1;
+ 411   1        if(c1==0){
+ 412   2          delay_ms(50); //chong rung phim
+ 413   2          if(c1==0){
+ 414   3            lcddata('*');
+ 415   3            delay(2);
+ 416   3            return '1';
+ 417   3          }
+ 418   2          
+ 419   2        }
+ 420   1        if(c2==0){
+ 421   2          delay_ms(50); //chong rung phim
+ 422   2          if(c2==0){
+ 423   3            lcddata('*');
+ 424   3            delay(2);
+ 425   3            return '2';
+C51 COMPILER V9.60.0.0   MAIN                                                              06/09/2022 22:09:28 PAGE 8   
+
+ 426   3            
+ 427   3          }
+ 428   2        }
+ 429   1        if(c3==0){
+ 430   2          delay_ms(50); //chong rung phim
+ 431   2          if(c3==0){
+ 432   3            lcddata('*');
+ 433   3            delay(2);
+ 434   3            return '3';
+ 435   3          }
+ 436   2        }
+ 437   1      
+ 438   1        //quet hang thu 2
+ 439   1        r2=0;
+ 440   1        r1=r3=r4=1;
+ 441   1        
+ 442   1        if(c1==0){
+ 443   2          delay_ms(50);
+ 444   2          if(c1==0){
+ 445   3            lcddata('*');
+ 446   3            delay(2);
+ 447   3            return '4';
+ 448   3          }
+ 449   2          
+ 450   2        }
+ 451   1      
+ 452   1        
+ 453   1        if(c2==0){
+ 454   2          delay_ms(50);
+ 455   2          if(c2==0){
+ 456   3            lcddata('*');
+ 457   3            delay(2);
+ 458   3            return '5';
+ 459   3          }
+ 460   2          
+ 461   2        }
+ 462   1      
+ 463   1        
+ 464   1        if(c3==0){
+ 465   2          delay_ms(50);
+ 466   2          if(c3==0){
+ 467   3            lcddata('*');
+ 468   3            delay(2);
+ 469   3            return '6';
+ 470   3          }
+ 471   2          
+ 472   2        }
+ 473   1      
+ 474   1        //quet dong thu 3
+ 475   1        r3=0;
+ 476   1        r1=r2=r4=1;
+ 477   1        
+ 478   1        if(c1==0){
+ 479   2          delay_ms(50);
+ 480   2          if(c1==0){
+ 481   3            lcddata('*');
+ 482   3            delay(2);
+ 483   3            return '7';
+ 484   3          }
+ 485   2          
+ 486   2        }
+ 487   1        
+C51 COMPILER V9.60.0.0   MAIN                                                              06/09/2022 22:09:28 PAGE 9   
+
+ 488   1        if(c2==0){
+ 489   2          delay_ms(50);
+ 490   2          if(c2==0){
+ 491   3            lcddata('*');
+ 492   3            delay(2);
+ 493   3            return '8';
+ 494   3          }
+ 495   2          
+ 496   2        }
+ 497   1        if(c3==0){
+ 498   2          delay_ms(50);
+ 499   2          if(c3==0){
+ 500   3            lcddata('*');
+ 501   3            delay(2);
+ 502   3            return '9';
+ 503   3          }
+ 504   2          
+ 505   2        }
+ 506   1      
+ 507   1        //quet dong thu 4
+ 508   1        r4=0;
+ 509   1        r1=r2=r3=1;
+ 510   1        if(c1==0){
+ 511   2          delay_ms(50);
+ 512   2          if(c1==0){
+ 513   3            lcddata(' ');
+ 514   3            delay(2);
+ 515   3            return '*';
+ 516   3          }
+ 517   2          
+ 518   2        }
+ 519   1      
+ 520   1        if(c2==0){
+ 521   2          delay_ms(50);
+ 522   2          if(c2==0){
+ 523   3            lcddata('*');
+ 524   3            delay(2);
+ 525   3            return '0';
+ 526   3          }
+ 527   2          
+ 528   2        }
+ 529   1      
+ 530   1      
+ 531   1        if(c3==0){
+ 532   2          delay_ms(50);
+ 533   2          if(c3==0){
+ 534   3            lcddata(' ');
+ 535   3            delay(2);
+ 536   3            return '#';
+ 537   3          }
+ 538   2          
+ 539   2        }
+ 540   1        return 'n'; //n - no key
+ 541   1      }
+ 542          //-------------------
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1552    ----
+   CONSTANT SIZE    =    286    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+C51 COMPILER V9.60.0.0   MAIN                                                              06/09/2022 22:09:28 PAGE 10  
+
+   DATA SIZE        =     64      16
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)
